@@ -4,29 +4,31 @@ from numpy.random import poisson
 import requests
 import katzenpost
 
-NUM_CLIENTS = 5
+NUM_CLIENTS = 10
+RATE = 10
 
-PKI_ADDR ="37.218.242.147:29485",                                                                                      │
+PKI_ADDR ="37.218.242.147:29485"
 PKI_KEY ="DFD5E1A26E9B3EF7B3DA0102002B93C66FC36B12D14C608C3FBFCA03BF3EBCDC"
 MINUTE = 60.0
+COMMON_IDKEY = "2FE57DA347CD62431528DAAC5FBB290730FFF684AFC4CFC2ED90995F58CB3B74"
 
 
 class Agent(object):
     """
-    An that models the scheduling of outgoing messages,
+    An agent that models the scheduling of outgoing messages,
     following a Poisson process.
     """
 
     name = "client"
 
-    def __init__(self, cid, rate=2, client=None):
+    def __init__(self, cid, rate=RATE, client=None):
         """
         :param cid: client identifier.
         :param rate: the average rate of messages sent for minute.
         """
         self.running = False
         self.cid = cid
-        self.rate = msg_rate
+        self.rate = rate
         self.client = client
 
     @property
@@ -98,11 +100,11 @@ class KatzenClient(object):
         self._linkkey = katzenpost.GenKey()
 
     def register(self):
-        idkey = katzenpost.StringToKey('0' * 32)
+        idkey = katzenpost.StringToKey(COMMON_IDKEY)
         r = requests.post('http://{provider}:7900/register'.format(
             provider=self.provider),
             {'linkkey': self._linkkey.Public,
-             'idkey': idkey})
+             'idkey': idkey.Public})
         username = r.get('username')
         self.user = username
         print("GOT USERNAME", username)
@@ -130,7 +132,7 @@ class KatzenClient(object):
         try:
             m = self._client.GetMessage(1)
         except RuntimeError:
-            continue
+            pass
         print("{user} GOT MESSAGE FROM {sender}".format(
             user=self.user, sender=m.Sender))
 
@@ -138,9 +140,10 @@ class KatzenClient(object):
 def simulate():
     agents = []
     for i in range(NUM_CLIENTS):
-        client = KatzenClient(None, 'idefix', register=True)
+        client = None
+        # client = KatzenClient(None, 'idefix', register=True)
         agents.append(Agent(i, client=client))
-    start_all(clients)
+    start_all(agents)
     reactor.run()
 
 
