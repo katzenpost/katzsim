@@ -6,9 +6,9 @@ import katzenpost
 
 NUM_CLIENTS = 5
 
-PKI_KEY = "900895721381C0756D28954524BB1D090F54C8DD9295F84B1D8A93F1E3C17AD8"
-PkI_ADDR ="192.0.2.1:29483"
-MINUTE = 60
+PKI_ADDR ="37.218.242.147:29485",                                                                                      │
+PKI_KEY ="DFD5E1A26E9B3EF7B3DA0102002B93C66FC36B12D14C608C3FBFCA03BF3EBCDC"
+MINUTE = 60.0
 
 
 class Agent(object):
@@ -71,13 +71,15 @@ class KatzenClient(object):
     A client that handles registration and actual sending of messages.
     """
 
-    def __init__(self, user, provider):
+    def __init__(self, user, provider, register=True):
         self.user = user
         self.provider = provider
         self._linkkey = None
         self._client = None
+        self._counter = 0
         self.genkey()
-        self.register()
+        if register:
+            self.register()
         self.initialize()
 
     def initialize(self):
@@ -96,9 +98,19 @@ class KatzenClient(object):
         self._linkkey = katzenpost.GenKey()
 
     def register(self):
-        pass
+        idkey = katzenpost.StringToKey('0' * 32)
+        r = requests.post('http://{provider}:7900/register'.format(
+            provider=self.provider),
+            {'linkkey': self._linkkey.Public,
+             'idkey': idkey})
+        username = r.get('username')
+        self.user = username
+        print("GOT USERNAME", username)
 
-    def send(self, recipient, msg):
+    def send(self, recipient, msg=None):
+        self._counter += 1
+        if msg is None:
+            msg = str(self._counter)
         mail = """From: {user}@{provider}
         To: {recipient}@{provider}
         Subject: hello
@@ -126,8 +138,8 @@ class KatzenClient(object):
 def simulate():
     agents = []
     for i in range(NUM_CLIENTS):
-        client = KatzenClient()
-        agents.append(Agent(i))
+        client = KatzenClient(None, 'idefix', register=True)
+        agents.append(Agent(i, client=client))
     start_all(clients)
     reactor.run()
 
