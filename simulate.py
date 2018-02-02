@@ -1,3 +1,4 @@
+import os
 import random
 
 from twisted.internet import reactor
@@ -8,13 +9,12 @@ import requests
 import katzenpost
 
 # ------- TUNING PARAMETERS ---------
-NUM_CLIENTS = 50
-RATE = 60  # avg messages per minute
+NUM_CLIENTS = 100
+RATE = 120  # avg messages per minute
 # -----------------------------------
 
 PKI_ADDR ="37.218.242.147:29485"
 PKI_KEY ="DFD5E1A26E9B3EF7B3DA0102002B93C66FC36B12D14C608C3FBFCA03BF3EBCDC"
-MINUTE = 60.0
 COMMON_IDKEY = "2FE57DA347CD62431528DAAC5FBB290730FFF684AFC4CFC2ED90995F58CB3B74"
 
 
@@ -61,7 +61,7 @@ class Agent(object):
         reactor.callLater(self.next_event(), self.send)
 
     def next_event(self):
-        return poisson(MINUTE/self.rate)
+        return poisson(60.0 / self.rate)
 
     def __repr__(self):
         return self.label + self.cid
@@ -144,6 +144,7 @@ class Controller(object):
 
     def __init__(self):
         self._agents = []
+        self.rate = RATE
 
     def add(self, agent):
         self._agents.append(agent)
@@ -160,15 +161,24 @@ class Controller(object):
         return random.choice(self._agents)
 
 
-def simulate():
+def simulate(num=NUM_CLIENTS, rate=RATE):
     controller = Controller()
-    for i in range(NUM_CLIENTS):
+    for i in range(num):
         client = KatzenClient('client'+str(i), 'idefix', register=True)
-        controller.add(Agent(i, client=client, controller=controller))
+        controller.add(Agent(i, client=client, rate=rate, controller=controller))
+    controller.rate = rate
     controller.start()
     reactor.run()
 
+def usage():
+    print("Usage: simulate.py NUM_CLIENTS RATE")
 
 if __name__ == "__main__":
+    import sys
+    if len(sys.argv) != 3:
+        usage()
+        sys.exit()
+    num = int(sys.argv[1])
+    rate = int(sys.argv[2])
     print ">>> Starting client run"
-    simulate()
+    simulate(num, rate)
