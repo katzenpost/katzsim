@@ -133,7 +133,8 @@ class KatzenClient(object):
 
     def receive(self):
         try:
-            m = self._client.GetMessage(1)
+            # timeout in miliseconds
+            m = self._client.GetMessage(10)
             print("{user} GOT MESSAGE FROM {sender}".format(
                 user=self.user, sender=m.Sender))
         except RuntimeError:
