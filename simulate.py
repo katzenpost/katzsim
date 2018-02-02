@@ -1,14 +1,15 @@
 import random
 
 from twisted.internet import reactor
+from twisted.internet.threads import deferToThread
 from numpy.random import poisson
 
 import requests
 import katzenpost
 
 # ------- TUNING PARAMETERS ---------
-NUM_CLIENTS = 20
-RATE = 20  # avg messages per minute
+NUM_CLIENTS = 50
+RATE = 60  # avg messages per minute
 # -----------------------------------
 
 PKI_ADDR ="37.218.242.147:29485"
@@ -52,7 +53,7 @@ class Agent(object):
             recipient = self.controller.random().client.user
         print ("%s sending (%s -> %s)" % (self.label, self.client.user, recipient))
         if self.client:
-            self.client.send(recipient, msg)
+            deferToThread(self.client.send, recipient, msg)
         if self.running:
             self.schedule()
 
@@ -67,6 +68,7 @@ class Agent(object):
 
 
 class KatzenClient(object):
+
     """
     A client that handles registration and actual sending of messages.
     """
