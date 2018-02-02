@@ -4,8 +4,10 @@ from numpy.random import poisson
 import requests
 import katzenpost
 
-NUM_CLIENTS = 10
+# ------- TUNING PARAMETERS ---------
+NUM_CLIENTS = 2
 RATE = 10
+# -----------------------------------
 
 PKI_ADDR ="37.218.242.147:29485"
 PKI_KEY ="DFD5E1A26E9B3EF7B3DA0102002B93C66FC36B12D14C608C3FBFCA03BF3EBCDC"
@@ -59,15 +61,6 @@ class Agent(object):
         return self.label + self.cid
 
 
-def start_all(clients):
-    for client in clients:
-        client.run()
-
-def stop_all(clients):
-    for client in clients:
-        client.stop()
-
-
 class KatzenClient(object):
     """
     A client that handles registration and actual sending of messages.
@@ -85,12 +78,12 @@ class KatzenClient(object):
         self.initialize()
 
     def initialize(self):
-        key = katzenpost.StringToKey(self._linkKey)
+        print "USER", self.user
         cfg = katzenpost.Config(
             PkiAddress=PKI_ADDR,
             PkiKey=PKI_KEY,
-            User=self.user,
-            LinkKey=key,
+            User=str(self.user),
+            LinkKey=self._linkkey,
             Provider=self.provider,
             Log=katzenpost.LogConfig()
         )
@@ -105,16 +98,20 @@ class KatzenClient(object):
             provider=self.provider),
             {'linkkey': self._linkkey.Public,
              'idkey': idkey.Public})
-        username = r.get('username')
+        username = r.json().get('register')
+        print("Registered username for {client}: {username}".format(
+            client=self.user,
+            username=username))
         self.user = username
-        print("GOT USERNAME", username)
 
     def send(self, recipient, msg=None):
+        print "RECIPIENT", recipient
+        recipient = 'embarrassedlynx71'
         self._counter += 1
         if msg is None:
             msg = str(self._counter)
-        mail = """From: {user}@{provider}
-        To: {recipient}@{provider}
+        mail = """From: <{user}@{provider}>
+        To: <{recipient}@{provider}>
         Subject: hello
 
         {msg}.
@@ -123,29 +120,39 @@ class KatzenClient(object):
             provider=self.provider,
             recipient=recipient,
             msg=msg)
-        self._client.Send("{recipient}@{provider}".format(
+        # print(">>>SENDING msg", mail)
+        self._client.Send(str("<{recipient}@{provider}>").format(
             recipient=recipient,
-            provider=self.provider), mail)
+            provider=self.provider), str(mail))
         self.receive()
 
     def receive(self):
         try:
             m = self._client.GetMessage(1)
+            print("{user} GOT MESSAGE FROM {sender}".format(
+                user=self.user, sender=m.Sender))
         except RuntimeError:
             pass
-        print("{user} GOT MESSAGE FROM {sender}".format(
-            user=self.user, sender=m.Sender))
 
 
 def simulate():
     agents = []
     for i in range(NUM_CLIENTS):
         client = None
-        # client = KatzenClient(None, 'idefix', register=True)
+        client = KatzenClient('client'+str(i), 'idefix', register=True)
         agents.append(Agent(i, client=client))
     start_all(agents)
     reactor.run()
 
+
+def start_all(clients):
+    for client in clients:
+        client.run()
+
+
+def stop_all(clients):
+    for client in clients:
+        client.stop()
 
 
 if __name__ == "__main__":
