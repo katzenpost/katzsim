@@ -1,3 +1,5 @@
+import random
+
 from twisted.internet import reactor
 from numpy.random import poisson
 
@@ -5,8 +7,8 @@ import requests
 import katzenpost
 
 # ------- TUNING PARAMETERS ---------
-NUM_CLIENTS = 2
-RATE = 10
+NUM_CLIENTS = 20
+RATE = 20  # avg messages per minute
 # -----------------------------------
 
 PKI_ADDR ="37.218.242.147:29485"
@@ -23,7 +25,7 @@ class Agent(object):
 
     name = "client"
 
-    def __init__(self, cid, rate=RATE, client=None):
+    def __init__(self, cid, rate=RATE, client=None, controller=None):
         """
         :param cid: client identifier.
         :param rate: the average rate of messages sent for minute.
@@ -32,6 +34,7 @@ class Agent(object):
         self.cid = cid
         self.rate = rate
         self.client = client
+        self.controller = controller
 
     @property
     def label(self):
@@ -45,7 +48,9 @@ class Agent(object):
         self.running = False
 
     def send(self, recipient="", msg=""):
-        print "%s sending a message" % self.label
+        if not recipient and self.controller:
+            recipient = self.controller.random().client.user
+        print ("%s sending (%s -> %s)" % (self.label, self.client.user, recipient))
         if self.client:
             self.client.send(recipient, msg)
         if self.running:
@@ -105,8 +110,6 @@ class KatzenClient(object):
         self.user = username
 
     def send(self, recipient, msg=None):
-        print "RECIPIENT", recipient
-        recipient = 'embarrassedlynx71'
         self._counter += 1
         if msg is None:
             msg = str(self._counter)
@@ -135,24 +138,33 @@ class KatzenClient(object):
             pass
 
 
+class Controller(object):
+
+    def __init__(self):
+        self._agents = []
+
+    def add(self, agent):
+        self._agents.append(agent)
+
+    def start(self):
+        for agent in self._agents:
+            agent.run()
+
+    def stop(self):
+        for agent in self._agents:
+            agent.stop()
+
+    def random(self):
+        return random.choice(self._agents)
+
+
 def simulate():
-    agents = []
+    controller = Controller()
     for i in range(NUM_CLIENTS):
-        client = None
         client = KatzenClient('client'+str(i), 'idefix', register=True)
-        agents.append(Agent(i, client=client))
-    start_all(agents)
+        controller.add(Agent(i, client=client, controller=controller))
+    controller.start()
     reactor.run()
-
-
-def start_all(clients):
-    for client in clients:
-        client.run()
-
-
-def stop_all(clients):
-    for client in clients:
-        client.stop()
 
 
 if __name__ == "__main__":
